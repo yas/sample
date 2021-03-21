@@ -1,4 +1,9 @@
+#include <errno.h>
 #include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
 // ...
 #include <fcntl.h>
 #include <unistd.h>
@@ -67,7 +72,7 @@ int8_t i2c_write(
   memcpy(&buffer[1], data, length);  /* 2バイト目以降にデータをセット. */
 
   /* I2C-Writeメッセージを作成する. */
-  struct i2c_msg message = { dev_addr, 0, length + 1, buffer };
+  struct i2c_msg message = { dev_addr, 0, (unsigned short int)(length + 1), buffer };
   struct i2c_rdwr_ioctl_data ioctl_data = { &message, 1 };
 
   /* I2C-Writeを行う. */

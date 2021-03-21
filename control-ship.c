@@ -1,22 +1,25 @@
+#include <errno.h>
+
 #include <stddef.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 #include "i2c_rw.h"
 
-struct Command{
+typedef struct {
     uint8_t address_;
     uint8_t value_[1];
-};
+} Command;
 
-struct Argument{
-    char *target_;
+typedef struct {
+    const char *target_;
     uint8_t address_;
     long parameter_min_;
     long parameter_max_;
     uint8_t (*calc_function_)(const long param);
-};
+} Argument;
 
 
 uint8_t calc_shift_value(const long param)
@@ -38,10 +41,10 @@ uint8_t calc_throttle_value(const long param)
 
 uint8_t calc_rudder_value(const long param)
 {
-    return ((0xff * (500 - (param * 11))) / 1000.f)
+    return ((0xff * (500 - (param * 11))) / 1000.f);
 }
 
-const g_arg_table_elements = 3;
+const int g_arg_table_elements = 3;
 const Argument g_arg_table[g_arg_table_elements] =
 {
     {"shift", 1, -1, 1, calc_shift_value},
@@ -72,12 +75,12 @@ uint8_t parse_parameter(const char *parameter, int index){
     char *endptr;
     errno = 0;
     long param = strtol(parameter, &endptr, 10);
-    if(errno != 0){
+    if((errno != 0) || (*endptr !='\0')){
         print_usage();
         exit(3);
     }
 
-    if((g_arg_table[index].parameter_min_ < param) || (param < g_arg_table[index].parameter_max_)){
+    if((param < g_arg_table[index].parameter_min_) || (g_arg_table[index].parameter_max_ < param)){
         print_usage();
         exit(4);
     }
@@ -85,7 +88,7 @@ uint8_t parse_parameter(const char *parameter, int index){
     return g_arg_table[index].calc_function_(param);
 }
 
-Command parse_argv(const char *argv)
+Command parse_argv(const char *argv[])
 {
     for(int i = 0;i < g_arg_table_elements;++ i){
         if(strcmp(argv[1], g_arg_table[i].target_) == 0){
@@ -99,12 +102,13 @@ Command parse_argv(const char *argv)
     exit(2);
 }
 
-int main(int argc, char *argv[])
+int main(int argc, const char *argv[])
 {
     check_argc(argc);
     Command command = parse_argv(argv);
 
     printf("Command 'control-ship(Target: %s(ch. %d), Parameter: %d)", argv[1], command.address_, command.value_[0]);
+
     if(i2c_write(0x08, command.address_, command.value_, 1) != 0){
         printf(" is failed to send.\n");
         exit(1);
